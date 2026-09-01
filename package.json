@@ -1,0 +1,27 @@
+{
+  "name": "personal-budget-tracker",
+  "version": "1.0.0",
+  "description": "Personal Budget Tracker App - Phase 1 Foundation",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "node server/server.js",
+    "client": "npm --prefix client run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "install-all": "npm install && npm --prefix server install && npm --prefix client install"
+  },
+  "keywords": [
+    "budget",
+    "finance",
+    "tracker",
+    "expense-tracker",
+    "react",
+    "express",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
