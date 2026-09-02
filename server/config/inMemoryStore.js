@@ -6,25 +6,26 @@ const users = [];
 const transactions = [];
 const budgets = [];
 const savingsGoals = [];
+const notifications = [];
 
 // Helper to generate mongo-like hex IDs
 const generateId = () => crypto.randomBytes(12).toString('hex');
 
-// Seed default demo user
-(async () => {
-  const hashedPassword = await bcrypt.hash('password123', 10);
-  const demoUser = {
-    _id: generateId(),
-    name: 'Demo User',
-    email: 'demo@example.com',
-    password: hashedPassword,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    async matchPassword(enteredPassword) {
-      return await bcrypt.compare(enteredPassword, this.password);
-    }
-  };
-  users.push(demoUser);
+// Seed default demo user synchronously to prevent startup race conditions
+const hashedPassword = bcrypt.hashSync('password123', 10);
+const demoUser = {
+  _id: generateId(),
+  name: 'Demo User',
+  email: 'demo@example.com',
+  password: hashedPassword,
+  isDemo: true,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  async matchPassword(enteredPassword) {
+    return await bcrypt.compare(enteredPassword, this.password);
+  }
+};
+users.push(demoUser);
 
   // Seed some initial demo transactions for nice preview
   const now = new Date();
@@ -91,7 +92,6 @@ const generateId = () => crypto.randomBytes(12).toString('hex');
     updatedAt: new Date()
   };
   budgets.push(b1, b2);
-})();
 
 const memoryStore = {
   users,
@@ -324,6 +324,63 @@ const memoryStore = {
     if (idx === -1) return false;
     savingsGoals.splice(idx, 1);
     return true;
+  },
+
+  // Notification operations
+  notifications,
+
+  findNotifications: async (userId) => {
+    const list = notifications.filter((n) => String(n.userId) === String(userId));
+    list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return list;
+  },
+
+  findNotificationById: async (id, userId) => {
+    return notifications.find((n) => String(n._id) === String(id) && String(n.userId) === String(userId)) || null;
+  },
+
+  createNotification: async (data) => {
+    const notification = {
+      _id: generateId(),
+      userId: data.userId,
+      title: data.title,
+      message: data.message,
+      type: data.type || 'info',
+      isRead: Boolean(data.isRead),
+      readAt: data.readAt || null,
+      metadata: data.metadata || {},
+      createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+      updatedAt: new Date()
+    };
+    notifications.push(notification);
+    return notification;
+  },
+
+  markNotificationAsRead: async (id, userId) => {
+    const idx = notifications.findIndex((n) => String(n._id) === String(id) && String(n.userId) === String(userId));
+    if (idx === -1) return null;
+    notifications[idx].isRead = true;
+    notifications[idx].readAt = new Date();
+    notifications[idx].updatedAt = new Date();
+    return notifications[idx];
+  },
+
+  markAllNotificationsAsRead: async (userId) => {
+    let count = 0;
+    const now = new Date();
+    notifications.forEach((n) => {
+      if (String(n.userId) === String(userId) && !n.isRead) {
+        n.isRead = true;
+        n.readAt = now;
+        n.updatedAt = now;
+        count++;
+      }
+    });
+    return count;
+  },
+
+  getUnreadNotificationsCount: async (userId) => {
+    return notifications.filter((n) => String(n.userId) === String(userId) && !n.isRead).length;
   }
 };
 

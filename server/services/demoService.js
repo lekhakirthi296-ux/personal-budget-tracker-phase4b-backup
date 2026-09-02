@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
 const SavingsGoal = require('../models/SavingsGoal');
+const Notification = require('../models/Notification');
 const { isMongoConnected } = require('../config/db');
 const memoryStore = require('../config/inMemoryStore');
 
@@ -183,7 +184,42 @@ const getDemoFixtures = (userId) => {
     }
   ];
 
-  return { transactions, budgets, savingsGoals };
+  const notifications = [
+    {
+      userId,
+      title: 'Budget Alert (82%) ⚠️',
+      message: 'Food budget has reached 82% utilization for this month.',
+      type: 'budget_warning',
+      isRead: false,
+      createdAt: new Date(Date.now() - 1000 * 60 * 45) // 45m ago
+    },
+    {
+      userId,
+      title: 'Contribution Recorded 💰',
+      message: '₹5,000 deposited into "Emergency Fund". New balance: ₹95,000.',
+      type: 'savings_contribution',
+      isRead: false,
+      createdAt: new Date(Date.now() - 1000 * 60 * 180) // 3h ago
+    },
+    {
+      userId,
+      title: 'Smart Import Recorded 📱',
+      message: 'Imported ₹680 (Food) via UPI payment.',
+      type: 'import_success',
+      isRead: true,
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) // 1 day ago
+    },
+    {
+      userId,
+      title: 'Savings Goal Achieved! 🎉',
+      message: 'Congratulations! You reached 100% of your ₹75,000 goal for "New Laptop / Tech Upgrade".',
+      type: 'savings_completed',
+      isRead: true,
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48) // 2 days ago
+    }
+  ];
+
+  return { transactions, budgets, savingsGoals, notifications };
 };
 
 /**
@@ -202,7 +238,7 @@ const getOrCreateDemoAccount = async () => {
       });
     }
 
-    const { transactions, budgets, savingsGoals } = getDemoFixtures(demoUser._id);
+    const { transactions, budgets, savingsGoals, notifications } = getDemoFixtures(demoUser._id);
 
     // Seed transactions if empty
     const txCount = await Transaction.countDocuments({ userId: demoUser._id });
@@ -231,6 +267,12 @@ const getOrCreateDemoAccount = async () => {
       await SavingsGoal.insertMany(savingsGoals);
     }
 
+    // Seed notifications if empty
+    const notifCount = await Notification.countDocuments({ userId: demoUser._id });
+    if (notifCount === 0) {
+      await Notification.insertMany(notifications);
+    }
+
     return {
       id: demoUser._id,
       name: demoUser.name,
@@ -249,7 +291,7 @@ const getOrCreateDemoAccount = async () => {
       });
     }
 
-    const { transactions, budgets, savingsGoals } = getDemoFixtures(demoUser._id);
+    const { transactions, budgets, savingsGoals, notifications } = getDemoFixtures(demoUser._id);
 
     // Seed transactions in memory if empty
     const existingTx = await memoryStore.findTransactions(demoUser._id);
@@ -275,6 +317,14 @@ const getOrCreateDemoAccount = async () => {
     if (!existingSavings || existingSavings.length === 0) {
       for (const s of savingsGoals) {
         await memoryStore.createSavingsGoal(s);
+      }
+    }
+
+    // Seed notifications in memory if empty
+    const existingNotifs = await memoryStore.findNotifications(demoUser._id);
+    if (!existingNotifs || existingNotifs.length === 0) {
+      for (const n of notifications) {
+        await memoryStore.createNotification(n);
       }
     }
 

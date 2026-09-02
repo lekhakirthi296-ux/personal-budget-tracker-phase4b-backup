@@ -5,8 +5,8 @@ const memoryStore = require('../config/inMemoryStore');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
 const { getOrCreateDemoAccount, DEMO_EMAIL } = require('../services/demoService');
 
-// Email validation regex pattern
-const EMAIL_REGEX = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
+// Email validation regex pattern (supports modern 2+ char TLDs and subdomains)
+const EMAIL_REGEX = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,})+$/;
 
 /**
  * Helper to generate JWT token with userId payload
@@ -18,6 +18,36 @@ const generateToken = (userId) => {
   return jwt.sign({ userId: String(userId) }, secret, {
     expiresIn: process.env.JWT_EXPIRE || '7d'
   });
+};
+
+/**
+ * Helper to find a user across MongoDB and in-memory store
+ */
+const findUserByEmailAcrossStores = async (email) => {
+  const normalizedEmail = email.toLowerCase().trim();
+  let user = null;
+
+  if (isMongoConnected()) {
+    try {
+      user = await User.findOne({ email: normalizedEmail });
+    } catch (e) {
+      // MongoDB query failure, fall through to in-memory store
+    }
+  }
+
+  if (!user) {
+    user = await memoryStore.findUserByEmail(normalizedEmail);
+  }
+
+  if (!user && !isMongoConnected()) {
+    try {
+      user = await User.findOne({ email: normalizedEmail });
+    } catch (e) {
+      // Offline fallback
+    }
+  }
+
+  return user;
 };
 
 /**
@@ -55,15 +85,15 @@ const register = async (req, res, next) => {
       return sendError(res, 'Password must be at least 8 characters', null, 400);
     }
 
+    // Check whether email already exists across available stores
+    const existingUser = await findUserByEmailAcrossStores(normalizedEmail);
+    if (existingUser) {
+      return sendError(res, 'User with this email already exists', null, 400);
+    }
+
     let user;
 
     if (isMongoConnected()) {
-      // Check whether email already exists in MongoDB
-      const existingUser = await User.findOne({ email: normalizedEmail });
-      if (existingUser) {
-        return sendError(res, 'User with this email already exists', null, 400);
-      }
-
       // Create user (password is automatically hashed via pre-save hook)
       user = await User.create({
         name: name.trim(),
@@ -72,11 +102,6 @@ const register = async (req, res, next) => {
       });
     } else {
       // In-Memory Fallback
-      const existingUser = await memoryStore.findUserByEmail(normalizedEmail);
-      if (existingUser) {
-        return sendError(res, 'User with this email already exists', null, 400);
-      }
-
       user = await memoryStore.createUser({
         name: name.trim(),
         email: normalizedEmail,
@@ -95,7 +120,8 @@ const register = async (req, res, next) => {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email
+          email: user.email,
+          isDemo: false
         },
         token
       },
@@ -122,13 +148,8 @@ const login = async (req, res, next) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // 2. Find user
-    let user;
-    if (isMongoConnected()) {
-      user = await User.findOne({ email: normalizedEmail });
-    } else {
-      user = await memoryStore.findUserByEmail(normalizedEmail);
-    }
+    // 2. Find user across MongoDB and in-memory store
+    const user = await findUserByEmailAcrossStores(normalizedEmail);
 
     if (!user) {
       return sendError(res, 'Invalid email or password', null, 401);
@@ -143,6 +164,8 @@ const login = async (req, res, next) => {
     // 4. Generate JWT
     const token = generateToken(user._id);
 
+    const isDemo = user.email === DEMO_EMAIL || user.email === 'demo@example.com' || Boolean(user.isDemo);
+
     // 5. Return safe user information and token
     return sendSuccess(
       res,
@@ -151,7 +174,8 @@ const login = async (req, res, next) => {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email
+          email: user.email,
+          isDemo
         },
         token
       },

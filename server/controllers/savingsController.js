@@ -3,6 +3,7 @@ const SavingsGoal = require('../models/SavingsGoal');
 const memoryStore = require('../config/inMemoryStore');
 const { isMongoConnected } = require('../config/db');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
+const notificationService = require('../services/notificationService');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -342,6 +343,19 @@ const addContribution = async (req, res, next) => {
       updatedGoal = goal;
     } else {
       updatedGoal = await memoryStore.addContribution(id, req.user._id, numericContribution);
+    }
+
+    // Trigger notification asynchronously for contribution & completion
+    try {
+      await notificationService.notifySavingsContribution(
+        req.user._id,
+        goal.name,
+        numericContribution,
+        newCurrentAmount,
+        goal.targetAmount
+      );
+    } catch (notifErr) {
+      console.warn('Failed to send contribution notification:', notifErr.message);
     }
 
     const enriched = enrichSavingsGoal(updatedGoal);

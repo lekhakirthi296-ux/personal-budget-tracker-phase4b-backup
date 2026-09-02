@@ -8,6 +8,7 @@ const budgetRoutes = require('./budgetRoutes');
 const savingsRoutes = require('./savingsRoutes');
 const dashboardRoutes = require('./dashboardRoutes');
 const analyticsRoutes = require('./analyticsRoutes');
+const notificationRoutes = require('./notificationRoutes');
 
 // Mount routes
 router.use('/health', healthRoutes);
@@ -17,5 +18,6 @@ router.use('/budgets', budgetRoutes);
 router.use('/savings', savingsRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/notifications', notificationRoutes);
 
 module.exports = router;

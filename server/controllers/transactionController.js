@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
+const Budget = require('../models/Budget');
 const { isMongoConnected } = require('../config/db');
 const memoryStore = require('../config/inMemoryStore');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
 const { parseTransactionText, checkDuplicateTransaction } = require('../services/transactionImportService');
+const notificationService = require('../services/notificationService');
 
 /**
  * Helper to escape regex special characters
@@ -85,6 +87,66 @@ const createTransaction = async (req, res, next) => {
       transaction = await Transaction.create(txData);
     } else {
       transaction = await memoryStore.createTransaction(txData);
+    }
+
+    // Trigger async notifications
+    try {
+      if (selectedSource === 'sms') {
+        await notificationService.notifySmartImport(req.user._id, transaction);
+      }
+
+      if (type.toLowerCase() === 'expense') {
+        const txDate = new Date(transactionDate);
+        const month = txDate.getMonth() + 1;
+        const year = txDate.getFullYear();
+
+        let budget = null;
+        let spentAmount = 0;
+
+        if (isMongoConnected()) {
+          budget = await Budget.findOne({ userId: req.user._id, category: category.trim(), month, year });
+          if (budget) {
+            const start = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+            const end = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+            const result = await Transaction.aggregate([
+              {
+                $match: {
+                  userId: new mongoose.Types.ObjectId(req.user._id),
+                  type: 'expense',
+                  category: category.trim(),
+                  date: { $gte: start, $lte: end }
+                }
+              },
+              {
+                $group: {
+                  _id: null,
+                  totalSpent: { $sum: '$amount' }
+                }
+              }
+            ]);
+            spentAmount = result.length > 0 ? result[0].totalSpent : 0;
+          }
+        } else {
+          const budgets = await memoryStore.findBudgets(req.user._id, month, year);
+          budget = budgets.find((b) => b.category === category.trim()) || null;
+          if (budget) {
+            spentAmount = memoryStore.calcSpentAmount(req.user._id, category.trim(), month, year);
+          }
+        }
+
+        if (budget) {
+          await notificationService.checkBudgetThresholdNotification(
+            req.user._id,
+            category.trim(),
+            month,
+            year,
+            budget.amount,
+            spentAmount
+          );
+        }
+      }
+    } catch (notifErr) {
+      console.warn('Transaction notification trigger error:', notifErr.message);
     }
 
     return sendSuccess(res, 'Transaction added successfully', { transaction }, 201);

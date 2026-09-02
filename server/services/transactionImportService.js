@@ -160,10 +160,10 @@ function parseTransactionText(rawText) {
   // 2. Extract Amount
   let amount = null;
   const amountPatterns = [
-    /(?:rs\.?|inr|₹|\$)\s*([\d,]+(?:\.\d{1,2})?)/i,
-    /(?:amount|amt|debited by|spent|paid|credited with|received|deposited)\s+(?:of|is|for|rs\.?|inr|₹|\$)?\s*([\d,]+(?:\.\d{1,2})?)/i,
-    /([\d,]+(?:\.\d{1,2})?)\s*(?:rs\.?|inr|₹|\$|spent|debited|credited)/i,
-    /([\d]+(?:\.\d{1,2}))/
+    /(?:\brs\.?|\binr|₹|\$)\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /(?:\bamount|\bamt|\bdebited by|\bspent|\bpaid|\bcredited with|\breceived|\bdeposited)\s+(?:of|is|for|rs\.?|inr|₹|\$)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:\brs\.?|\binr|₹|\$|\bspent|\bdebited|\bcredited)/i,
+    /(?:^|\s)([\d,]+\.\d{1,2})(?:\s|$)/
   ];
 
   for (const pattern of amountPatterns) {
@@ -218,6 +218,7 @@ function parseTransactionText(rawText) {
 
   // 4. Extract Merchant / Party / Description
   let description = '';
+  let extractedMerchant = '';
   const merchantPatterns = [
     /(?:at|to|for|from|towards|info:?)\s+([A-Za-z0-9\s&.'_-]{2,35})(?:\s+via|\s+on|\s+ref|\s+using|\.|$|,|\s+bal|\s+avl|\s+upi|\s+a\/c)/i,
     /(?:vpa|merchant)\s+([A-Za-z0-9\s&.'_-]{2,30})/i
@@ -231,6 +232,7 @@ function parseTransactionText(rawText) {
         .trim();
       if (candidate.length >= 2) {
         description = candidate;
+        extractedMerchant = candidate;
         confidenceScore += 0.15;
         confidenceReasons.push(`Extracted merchant: ${candidate}`);
         break;
@@ -250,7 +252,7 @@ function parseTransactionText(rawText) {
   let category = type === 'income' ? 'Other' : 'Other';
   const categoryDict = type === 'income' ? INCOME_CATEGORY_MAP : EXPENSE_CATEGORY_MAP;
 
-  const combinedSearchText = (lowerText + ' ' + description.toLowerCase());
+  const combinedSearchText = (lowerText + (extractedMerchant ? ' ' + extractedMerchant.toLowerCase() : ''));
 
   for (const mapping of categoryDict) {
     const matchFound = mapping.keywords.some(kw => combinedSearchText.includes(kw));

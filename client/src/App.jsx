@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -7,6 +8,8 @@ import TransactionsPage from './pages/TransactionsPage';
 import BudgetsPage from './pages/BudgetsPage';
 import SavingsPage from './pages/SavingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import NotificationBell from './components/NotificationBell';
+import ThemeSelectorModal from './components/ThemeSelectorModal';
 import { 
   DollarSign, 
   LogOut, 
@@ -14,13 +17,17 @@ import {
   LayoutDashboard,
   Target,
   PiggyBank,
-  Sparkles
+  Sparkles,
+  RefreshCw,
+  Palette
 } from 'lucide-react';
 
 function AppContent() {
   const { user, isAuthenticated, loading, logout } = useAuth();
+  const { theme, themes } = useTheme();
   const [authView, setAuthView] = useState('login'); // 'login' | 'register'
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'transactions' | 'budgets' | 'savings'
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
 
   return (
     <div className="container">
@@ -98,6 +105,30 @@ function AppContent() {
                 <span>Savings</span>
               </button>
 
+              {/* Notification Bell */}
+              <NotificationBell />
+
+              {/* Appearance & Theme Selector */}
+              <button
+                id="btn-open-theme-modal"
+                type="button"
+                className="btn-outline"
+                onClick={() => setIsThemeModalOpen(true)}
+                title="Appearance & Personalization"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.4rem 0.75rem',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                  borderColor: 'var(--border-color)'
+                }}
+              >
+                <Palette size={14} color="var(--accent-primary)" />
+                <span>Theme</span>
+              </button>
+
               <button
                 id="header-btn-logout"
                 className="btn-outline"
@@ -113,7 +144,12 @@ function AppContent() {
       </header>
 
       {/* Main Content Area */}
-      {!isAuthenticated ? (
+      {loading ? (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '320px', gap: '1rem' }}>
+          <RefreshCw size={28} className="animate-spin" color="var(--accent-primary)" />
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Restoring secure session...</p>
+        </div>
+      ) : !isAuthenticated ? (
         authView === 'login' ? (
           <LoginPage onNavigateToRegister={() => setAuthView('register')} />
         ) : (
@@ -140,12 +176,28 @@ function AppContent() {
         </ProtectedRoute>
       )}
 
+      {/* Theme Selector Modal */}
+      <ThemeSelectorModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+      />
+
       {/* App Footer */}
       <footer className="app-footer">
         <div>
           <span>Personal Budget Tracker</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button
+            id="footer-btn-theme"
+            type="button"
+            className="btn-link"
+            onClick={() => setIsThemeModalOpen(true)}
+            style={{ fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text-muted)' }}
+          >
+            <Palette size={13} />
+            <span>Theme: {themes.find((t) => t.id === theme)?.name || 'Default'}</span>
+          </button>
           <span>Secure Personal Finance Manager</span>
         </div>
       </footer>
@@ -155,8 +207,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

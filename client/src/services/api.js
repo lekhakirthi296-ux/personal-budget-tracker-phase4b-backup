@@ -272,6 +272,29 @@ export const savingsApi = {
 };
 
 /**
+ * Notifications API Endpoints
+ */
+export const notificationsApi = {
+  getAll: () => {
+    return request('/api/notifications', {
+      method: 'GET'
+    });
+  },
+
+  markAsRead: (id) => {
+    return request(`/api/notifications/${id}/read`, {
+      method: 'PATCH'
+    });
+  },
+
+  markAllAsRead: () => {
+    return request('/api/notifications/read-all', {
+      method: 'PATCH'
+    });
+  }
+};
+
+/**
  * Health Check API
  */
 export const healthApi = {
@@ -288,6 +311,7 @@ export default {
   dashboard: dashboardApi,
   budgets: budgetsApi,
   savings: savingsApi,
+  notifications: notificationsApi,
   health: healthApi,
   tokenStorage
 };
