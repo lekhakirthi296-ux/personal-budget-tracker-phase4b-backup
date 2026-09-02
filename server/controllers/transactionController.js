@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
+const { isMongoConnected } = require('../config/db');
+const memoryStore = require('../config/inMemoryStore');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
+const { parseTransactionText, checkDuplicateTransaction } = require('../services/transactionImportService');
 
 /**
  * Helper to escape regex special characters
@@ -61,8 +64,12 @@ const createTransaction = async (req, res, next) => {
       formattedDescription = description.trim();
     }
 
-    // 7. Persist Transaction with Enforced User Ownership and Manual Source
-    const transaction = await Transaction.create({
+    const allowedSources = ['manual', 'sms', 'imported'];
+    const selectedSource = (req.body.source && allowedSources.includes(req.body.source.toLowerCase()))
+      ? req.body.source.toLowerCase()
+      : 'manual';
+
+    const txData = {
       userId: req.user._id,
       type: type.toLowerCase(),
       amount: Math.round(numericAmount * 100) / 100, // Normalized to 2 decimal places
@@ -70,8 +77,15 @@ const createTransaction = async (req, res, next) => {
       date: transactionDate,
       paymentMethod: paymentMethod.trim(),
       description: formattedDescription,
-      source: 'manual'
-    });
+      source: selectedSource
+    };
+
+    let transaction;
+    if (isMongoConnected()) {
+      transaction = await Transaction.create(txData);
+    } else {
+      transaction = await memoryStore.createTransaction(txData);
+    }
 
     return sendSuccess(res, 'Transaction added successfully', { transaction }, 201);
   } catch (error) {
@@ -96,6 +110,29 @@ const getTransactions = async (req, res, next) => {
       page = 1,
       limit = 10
     } = req.query;
+
+    if (!isMongoConnected()) {
+      const result = await memoryStore.findTransactions(req.user._id, {
+        type,
+        category,
+        paymentMethod,
+        startDate,
+        endDate,
+        search,
+        page,
+        limit
+      });
+
+      return sendSuccess(res, 'Transactions retrieved successfully', {
+        transactions: result.transactions,
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages
+        }
+      }, 200);
+    }
 
     // Base query strictly scoped to authenticated user
     const query = {
@@ -186,20 +223,28 @@ const getTransactionById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendError(res, 'Invalid transaction ID', null, 400);
+    if (isMongoConnected()) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return sendError(res, 'Invalid transaction ID', null, 400);
+      }
+
+      const transaction = await Transaction.findOne({
+        _id: id,
+        userId: req.user._id
+      }).lean();
+
+      if (!transaction) {
+        return sendError(res, 'Transaction not found or unauthorized', null, 404);
+      }
+
+      return sendSuccess(res, 'Transaction retrieved successfully', { transaction }, 200);
+    } else {
+      const transaction = await memoryStore.findTransactionById(id, req.user._id);
+      if (!transaction) {
+        return sendError(res, 'Transaction not found or unauthorized', null, 404);
+      }
+      return sendSuccess(res, 'Transaction retrieved successfully', { transaction }, 200);
     }
-
-    const transaction = await Transaction.findOne({
-      _id: id,
-      userId: req.user._id
-    }).lean();
-
-    if (!transaction) {
-      return sendError(res, 'Transaction not found or unauthorized', null, 404);
-    }
-
-    return sendSuccess(res, 'Transaction retrieved successfully', { transaction }, 200);
   } catch (error) {
     next(error);
   }
@@ -215,26 +260,14 @@ const updateTransaction = async (req, res, next) => {
     const { id } = req.params;
     const { type, amount, category, date, paymentMethod, description } = req.body;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendError(res, 'Invalid transaction ID', null, 400);
-    }
-
-    // Find existing transaction ensuring strict user ownership
-    const transaction = await Transaction.findOne({
-      _id: id,
-      userId: req.user._id
-    });
-
-    if (!transaction) {
-      return sendError(res, 'Transaction not found or unauthorized', null, 404);
-    }
+    const updates = {};
 
     // 1. Validate & Update Type if provided
     if (type !== undefined) {
       if (!['income', 'expense'].includes(type.toLowerCase())) {
         return sendError(res, 'Transaction type must be either income or expense', null, 400);
       }
-      transaction.type = type.toLowerCase();
+      updates.type = type.toLowerCase();
     }
 
     // 2. Validate & Update Amount if provided
@@ -243,7 +276,7 @@ const updateTransaction = async (req, res, next) => {
       if (isNaN(numericAmount) || !isFinite(numericAmount) || numericAmount <= 0) {
         return sendError(res, 'Transaction amount must be a positive number greater than zero', null, 400);
       }
-      transaction.amount = Math.round(numericAmount * 100) / 100;
+      updates.amount = Math.round(numericAmount * 100) / 100;
     }
 
     // 3. Validate & Update Category if provided
@@ -251,7 +284,7 @@ const updateTransaction = async (req, res, next) => {
       if (typeof category !== 'string' || !category.trim()) {
         return sendError(res, 'Category cannot be empty', null, 400);
       }
-      transaction.category = category.trim();
+      updates.category = category.trim();
     }
 
     // 4. Validate & Update Payment Method if provided
@@ -259,7 +292,7 @@ const updateTransaction = async (req, res, next) => {
       if (typeof paymentMethod !== 'string' || !paymentMethod.trim()) {
         return sendError(res, 'Payment method cannot be empty', null, 400);
       }
-      transaction.paymentMethod = paymentMethod.trim();
+      updates.paymentMethod = paymentMethod.trim();
     }
 
     // 5. Validate & Update Date if provided
@@ -268,7 +301,7 @@ const updateTransaction = async (req, res, next) => {
       if (isNaN(parsedDate.getTime())) {
         return sendError(res, 'Please provide a valid transaction date', null, 400);
       }
-      transaction.date = parsedDate;
+      updates.date = parsedDate;
     }
 
     // 6. Validate & Update Description if provided
@@ -279,13 +312,34 @@ const updateTransaction = async (req, res, next) => {
       if (description.trim().length > 500) {
         return sendError(res, 'Description cannot exceed 500 characters', null, 400);
       }
-      transaction.description = description.trim();
+      updates.description = description.trim();
     }
 
-    // Save modifications (userId and source remain untouched)
-    await transaction.save();
+    if (isMongoConnected()) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return sendError(res, 'Invalid transaction ID', null, 400);
+      }
 
-    return sendSuccess(res, 'Transaction updated successfully', { transaction }, 200);
+      const transaction = await Transaction.findOne({
+        _id: id,
+        userId: req.user._id
+      });
+
+      if (!transaction) {
+        return sendError(res, 'Transaction not found or unauthorized', null, 404);
+      }
+
+      Object.assign(transaction, updates);
+      await transaction.save();
+
+      return sendSuccess(res, 'Transaction updated successfully', { transaction }, 200);
+    } else {
+      const transaction = await memoryStore.updateTransaction(id, req.user._id, updates);
+      if (!transaction) {
+        return sendError(res, 'Transaction not found or unauthorized', null, 404);
+      }
+      return sendSuccess(res, 'Transaction updated successfully', { transaction }, 200);
+    }
   } catch (error) {
     next(error);
   }
@@ -300,20 +354,65 @@ const deleteTransaction = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return sendError(res, 'Invalid transaction ID', null, 400);
+    if (isMongoConnected()) {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        return sendError(res, 'Invalid transaction ID', null, 400);
+      }
+
+      const transaction = await Transaction.findOneAndDelete({
+        _id: id,
+        userId: req.user._id
+      });
+
+      if (!transaction) {
+        return sendError(res, 'Transaction not found or unauthorized', null, 404);
+      }
+
+      return sendSuccess(res, 'Transaction deleted successfully', null, 200);
+    } else {
+      const deleted = await memoryStore.deleteTransaction(id, req.user._id);
+      if (!deleted) {
+        return sendError(res, 'Transaction not found or unauthorized', null, 404);
+      }
+      return sendSuccess(res, 'Transaction deleted successfully', null, 200);
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc   Parse and detect transaction details from raw SMS / notification text
+ * @route  POST /api/transactions/import/detect
+ * @access Private
+ */
+const detectImportedTransaction = async (req, res, next) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return sendError(res, 'Please provide transaction text or SMS message to detect', null, 400);
     }
 
-    const transaction = await Transaction.findOneAndDelete({
-      _id: id,
-      userId: req.user._id
-    });
+    // 1. Parse SMS text to extract candidate transaction fields & confidence score
+    const parseResult = parseTransactionText(text);
 
-    if (!transaction) {
-      return sendError(res, 'Transaction not found or unauthorized', null, 404);
+    if (!parseResult.success) {
+      return sendError(res, parseResult.error || 'Failed to detect transaction details', null, 400);
     }
 
-    return sendSuccess(res, 'Transaction deleted successfully', null, 200);
+    // 2. Check for duplicate transactions in user's history
+    const duplicateCheck = await checkDuplicateTransaction(req.user._id, parseResult.detected);
+
+    return sendSuccess(res, 'Transaction details detected successfully', {
+      detected: parseResult.detected,
+      confidence: parseResult.confidence,
+      duplicateCheck: {
+        isDuplicate: duplicateCheck.isDuplicate,
+        duplicateWarning: duplicateCheck.duplicateWarning,
+        matchingTransaction: duplicateCheck.matchingTransaction
+      }
+    }, 200);
   } catch (error) {
     next(error);
   }
@@ -324,5 +423,7 @@ module.exports = {
   getTransactions,
   getTransactionById,
   updateTransaction,
-  deleteTransaction
+  deleteTransaction,
+  detectImportedTransaction
 };
+

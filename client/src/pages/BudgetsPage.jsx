@@ -35,15 +35,33 @@ const YEAR_OPTIONS = [2024, 2025, 2026, 2027, 2028];
 
 function getBudgetStatus(utilizationPercentage) {
   if (utilizationPercentage > 100) {
-    return { label: 'Budget exceeded', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.35)', barColor: '#ef4444' };
+    return {
+      status: 'OVER_BUDGET',
+      label: 'Budget exceeded',
+      color: '#ef4444',
+      bg: 'rgba(239, 68, 68, 0.12)',
+      border: 'rgba(239, 68, 68, 0.35)',
+      barColor: '#ef4444'
+    };
   }
-  if (utilizationPercentage >= 90) {
-    return { label: 'Near limit', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', barColor: '#f59e0b' };
+  if (utilizationPercentage >= 80) {
+    return {
+      status: 'WARNING',
+      label: 'Approaching limit',
+      color: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.12)',
+      border: 'rgba(245, 158, 11, 0.35)',
+      barColor: '#f59e0b'
+    };
   }
-  if (utilizationPercentage >= 70) {
-    return { label: 'Approaching limit', color: '#fb923c', bg: 'rgba(251,146,60,0.12)', border: 'rgba(251,146,60,0.35)', barColor: '#fb923c' };
-  }
-  return { label: 'On track', color: '#10b981', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.35)', barColor: '#10b981' };
+  return {
+    status: 'NORMAL',
+    label: 'On track',
+    color: '#10b981',
+    bg: 'rgba(16, 185, 129, 0.12)',
+    border: 'rgba(16, 185, 129, 0.35)',
+    barColor: '#10b981'
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,12 +69,26 @@ function getBudgetStatus(utilizationPercentage) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function BudgetCard({ budget, onEdit, onDelete, deleteLoading }) {
-  const util = Math.max(0, budget.utilizationPercentage ?? 0);
-  const status = getBudgetStatus(budget.utilizationPercentage ?? 0);
+  const percentage = typeof budget.percentageUsed === 'number'
+    ? budget.percentageUsed
+    : typeof budget.utilizationPercentage === 'number'
+    ? budget.utilizationPercentage
+    : budget.amount > 0
+    ? ((budget.spentAmount ?? 0) / budget.amount) * 100
+    : 0;
+
+  const util = Math.max(0, percentage);
+  const status = getBudgetStatus(util);
   const barWidth = Math.min(util, 100);
 
+  const budgetAmount = budget.budgetAmount ?? budget.amount ?? 0;
+  const spentAmount = budget.spentAmount ?? 0;
+  const remainingAmount = budget.remainingAmount !== undefined
+    ? budget.remainingAmount
+    : budgetAmount - spentAmount;
+
   return (
-    <div className="budget-card">
+    <div className="budget-card" id={`budget-card-${budget._id}`}>
       {/* Top bar accent */}
       <div className="budget-card-accent" style={{ background: status.barColor }} />
 
@@ -79,9 +111,9 @@ function BudgetCard({ budget, onEdit, onDelete, deleteLoading }) {
           className="budget-status-badge"
           style={{ color: status.color, background: status.bg, border: `1px solid ${status.border}` }}
         >
-          {budget.utilizationPercentage > 100
+          {util > 100
             ? <AlertTriangle size={11} />
-            : budget.utilizationPercentage >= 70
+            : util >= 80
             ? <TrendingUp size={11} />
             : <CheckCircle2 size={11} />}
           {status.label}
@@ -92,21 +124,21 @@ function BudgetCard({ budget, onEdit, onDelete, deleteLoading }) {
       <div className="budget-financials">
         <div className="budget-fin-row">
           <span className="budget-fin-label">Budget</span>
-          <span className="budget-fin-value">{formatCurrency(budget.budgetAmount ?? budget.amount)}</span>
+          <span className="budget-fin-value">{formatCurrency(budgetAmount)}</span>
         </div>
         <div className="budget-fin-row">
           <span className="budget-fin-label">Spent</span>
-          <span className="budget-fin-value" style={{ color: budget.spentAmount > 0 ? '#f87171' : 'var(--text-secondary)' }}>
-            {formatCurrency(budget.spentAmount ?? 0)}
+          <span className="budget-fin-value" style={{ color: spentAmount > 0 ? '#f87171' : 'var(--text-secondary)' }}>
+            {formatCurrency(spentAmount)}
           </span>
         </div>
         <div className="budget-fin-row">
           <span className="budget-fin-label">Remaining</span>
           <span
             className="budget-fin-value"
-            style={{ color: (budget.remainingAmount ?? 0) < 0 ? '#ef4444' : '#10b981' }}
+            style={{ color: remainingAmount < 0 ? '#ef4444' : '#10b981' }}
           >
-            {formatCurrency(budget.remainingAmount ?? (budget.amount - (budget.spentAmount ?? 0)))}
+            {formatCurrency(remainingAmount)}
           </span>
         </div>
       </div>
@@ -285,7 +317,7 @@ export default function BudgetsPage() {
 
   // ── Open form for create ───────────────────────────────────────────────────
   const handleOpenCreate = () => {
-    setEditingBudget(null);
+    setEditingBudget({ month: selectedMonth, year: selectedYear });
     setShowForm(true);
   };
 
@@ -305,7 +337,7 @@ export default function BudgetsPage() {
   const handleFormSubmit = async (formData) => {
     setFormLoading(true);
     try {
-      if (editingBudget) {
+      if (editingBudget && editingBudget._id) {
         await budgetsApi.update(editingBudget._id, formData);
         setSuccessMsg('Budget updated successfully!');
       } else {
@@ -327,6 +359,8 @@ export default function BudgetsPage() {
     setDeleteLoading(true);
     try {
       await budgetsApi.delete(id);
+      // Immediately update UI by filtering out the deleted budget
+      setBudgets((prev) => prev.filter((b) => b._id !== id));
       setDeletingBudget(null);
       setSuccessMsg('Budget deleted successfully!');
       fetchBudgets();

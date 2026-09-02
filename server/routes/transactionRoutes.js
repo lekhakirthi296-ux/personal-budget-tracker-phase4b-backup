@@ -8,10 +8,17 @@ router.use(authMiddleware);
 
 /**
  * @route   POST /api/transactions
- * @desc    Create a new manual income/expense transaction
+ * @desc    Create a new manual or imported income/expense transaction
  * @access  Private
  */
 router.post('/', transactionController.createTransaction);
+
+/**
+ * @route   POST /api/transactions/import/detect
+ * @desc    Detect transaction fields from pasted SMS/notification text
+ * @access  Private
+ */
+router.post('/import/detect', transactionController.detectImportedTransaction);
 
 /**
  * @route   GET /api/transactions

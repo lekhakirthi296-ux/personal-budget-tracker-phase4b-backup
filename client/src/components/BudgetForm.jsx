@@ -31,7 +31,7 @@ export default function BudgetForm({ initialData = null, onSubmit, onCancel, loa
 
   const [error, setError] = useState(null);
 
-  // Sync when editing a different budget
+  // Sync when editing a different budget or changing default period
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -42,7 +42,7 @@ export default function BudgetForm({ initialData = null, onSubmit, onCancel, loa
       });
       setError(null);
     }
-  }, [initialData?._id]);
+  }, [initialData?._id, initialData?.month, initialData?.year]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

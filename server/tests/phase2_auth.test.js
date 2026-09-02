@@ -19,6 +19,8 @@ const User = require('../models/User');
 const authMiddleware = require('../middleware/authMiddleware');
 const authController = require('../controllers/authController');
 const app = require('../server');
+const db = require('../config/db');
+db.setMongoConnected(true);
 
 let passedTests = 0;
 let totalTests = 0;

@@ -5,30 +5,36 @@
 export const INCOME_CATEGORIES = [
   'Salary',
   'Freelance',
+  'Investments',
   'Business',
-  'Gift',
-  'Other Income'
+  'Rental',
+  'Gifts',
+  'Refunds',
+  'Other'
 ];
 
 export const EXPENSE_CATEGORIES = [
   'Food',
+  'Housing',
   'Transportation',
-  'Shopping',
-  'Bills',
-  'Education',
-  'Healthcare',
+  'Utilities',
   'Entertainment',
-  'Rent',
-  'Subscriptions',
+  'Healthcare',
+  'Shopping',
+  'Education',
+  'Personal Care',
+  'Travel',
+  'Bills',
   'Other'
 ];
 
 export const PAYMENT_METHODS = [
-  'Cash',
   'UPI',
   'Debit Card',
   'Credit Card',
+  'Net Banking',
   'Bank Transfer',
+  'Cash',
   'Other'
 ];
 

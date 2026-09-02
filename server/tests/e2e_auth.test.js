@@ -7,6 +7,8 @@ const assert = require('assert');
 const app = require('../server');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const db = require('../config/db');
+db.setMongoConnected(true);
 
 let server;
 let port;

@@ -18,6 +18,8 @@ const mongoose = require('mongoose');
 const Transaction = require('../models/Transaction');
 const transactionController = require('../controllers/transactionController');
 const dashboardController = require('../controllers/dashboardController');
+const db = require('../config/db');
+db.setMongoConnected(true);
 
 let passedTests = 0;
 let totalTests = 0;

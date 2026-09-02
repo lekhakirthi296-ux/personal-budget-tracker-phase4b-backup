@@ -1,6 +1,9 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { isMongoConnected } = require('../config/db');
+const memoryStore = require('../config/inMemoryStore');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
+const { getOrCreateDemoAccount, DEMO_EMAIL } = require('../services/demoService');
 
 // Email validation regex pattern
 const EMAIL_REGEX = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
@@ -11,11 +14,8 @@ const EMAIL_REGEX = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
  * @returns {string} JWT token
  */
 const generateToken = (userId) => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    throw new Error('JWT_SECRET is not configured in environment variables');
-  }
-  return jwt.sign({ userId }, secret, {
+  const secret = process.env.JWT_SECRET || 'personal_budget_tracker_secure_jwt_secret_key_2026';
+  return jwt.sign({ userId: String(userId) }, secret, {
     expiresIn: process.env.JWT_EXPIRE || '7d'
   });
 };
@@ -55,23 +55,39 @@ const register = async (req, res, next) => {
       return sendError(res, 'Password must be at least 8 characters', null, 400);
     }
 
-    // 2. Check whether email already exists
-    const existingUser = await User.findOne({ email: normalizedEmail });
-    if (existingUser) {
-      return sendError(res, 'User with this email already exists', null, 400);
+    let user;
+
+    if (isMongoConnected()) {
+      // Check whether email already exists in MongoDB
+      const existingUser = await User.findOne({ email: normalizedEmail });
+      if (existingUser) {
+        return sendError(res, 'User with this email already exists', null, 400);
+      }
+
+      // Create user (password is automatically hashed via pre-save hook)
+      user = await User.create({
+        name: name.trim(),
+        email: normalizedEmail,
+        password
+      });
+    } else {
+      // In-Memory Fallback
+      const existingUser = await memoryStore.findUserByEmail(normalizedEmail);
+      if (existingUser) {
+        return sendError(res, 'User with this email already exists', null, 400);
+      }
+
+      user = await memoryStore.createUser({
+        name: name.trim(),
+        email: normalizedEmail,
+        password
+      });
     }
 
-    // 3. Create user (password is automatically hashed via pre-save hook)
-    const user = await User.create({
-      name: name.trim(),
-      email: normalizedEmail,
-      password
-    });
-
-    // 4. Generate JWT
+    // Generate JWT
     const token = generateToken(user._id);
 
-    // 5. Return safe user data and token
+    // Return safe user data and token
     return sendSuccess(
       res,
       'User registered successfully',
@@ -106,13 +122,19 @@ const login = async (req, res, next) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // 2. Find user by normalized email
-    const user = await User.findOne({ email: normalizedEmail });
+    // 2. Find user
+    let user;
+    if (isMongoConnected()) {
+      user = await User.findOne({ email: normalizedEmail });
+    } else {
+      user = await memoryStore.findUserByEmail(normalizedEmail);
+    }
+
     if (!user) {
       return sendError(res, 'Invalid email or password', null, 401);
     }
 
-    // 3. Compare password with bcryptjs
+    // 3. Compare password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return sendError(res, 'Invalid email or password', null, 401);
@@ -151,6 +173,8 @@ const getCurrentUser = async (req, res, next) => {
       return sendError(res, 'Authentication required', null, 401);
     }
 
+    const isDemo = req.user.email === DEMO_EMAIL;
+
     return sendSuccess(
       res,
       'Authenticated user',
@@ -158,8 +182,38 @@ const getCurrentUser = async (req, res, next) => {
         user: {
           id: req.user._id,
           name: req.user.name,
-          email: req.user.email
+          email: req.user.email,
+          isDemo
         }
+      },
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc   Authenticate and log in to the dedicated public demo account
+ * @route  POST /api/auth/demo
+ * @access Public
+ */
+const loginDemo = async (req, res, next) => {
+  try {
+    const demoAccount = await getOrCreateDemoAccount();
+    const token = generateToken(demoAccount.id);
+
+    return sendSuccess(
+      res,
+      'Demo account login successful',
+      {
+        user: {
+          id: demoAccount.id,
+          name: demoAccount.name,
+          email: demoAccount.email,
+          isDemo: true
+        },
+        token
       },
       200
     );
@@ -171,5 +225,7 @@ const getCurrentUser = async (req, res, next) => {
 module.exports = {
   register,
   login,
-  getCurrentUser
+  getCurrentUser,
+  loginDemo
 };
+

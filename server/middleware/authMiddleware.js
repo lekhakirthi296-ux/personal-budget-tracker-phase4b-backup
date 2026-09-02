@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { isMongoConnected } = require('../config/db');
+const memoryStore = require('../config/inMemoryStore');
 const { sendError } = require('../utils/apiResponse');
 
 /**
@@ -21,17 +23,19 @@ const authMiddleware = async (req, res, next) => {
   }
 
   try {
-    // 3. Verify JWT with secret from environment
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      console.error('[Auth Error] JWT_SECRET is not defined in environment variables');
-      return sendError(res, 'Server configuration error', null, 500);
-    }
+    // 3. Verify JWT with secret from environment (or default fallback for preview)
+    const jwtSecret = process.env.JWT_SECRET || 'personal_budget_tracker_secure_jwt_secret_key_2026';
 
     const decoded = jwt.verify(token, jwtSecret);
 
-    // 4. Extract userId & find user in DB
-    const user = await User.findById(decoded.userId).select('-password');
+    // 4. Extract userId & find user in DB or in-memory store
+    let user = null;
+    if (isMongoConnected()) {
+      user = await User.findById(decoded.userId).select('-password');
+    } else {
+      user = await memoryStore.findUserById(decoded.userId);
+    }
+
     if (!user) {
       return sendError(res, 'User not found or session invalid', null, 401);
     }

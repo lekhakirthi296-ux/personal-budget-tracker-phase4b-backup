@@ -76,6 +76,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Demo Login handler
+  const loginDemo = async () => {
+    try {
+      const response = await authApi.loginDemo();
+      if (response.success && response.data) {
+        const { user: userData, token: newToken } = response.data;
+        tokenStorage.set(newToken);
+        setUser(userData);
+        setToken(newToken);
+        return { success: true, user: userData };
+      }
+      throw new Error(response.message || 'Demo login failed');
+    } catch (error) {
+      throw error;
+    }
+  };
+
   // Logout handler
   const logout = () => {
     tokenStorage.remove();
@@ -88,7 +105,9 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     isAuthenticated: !!user,
+    isDemo: !!user?.isDemo,
     login,
+    loginDemo,
     register,
     logout,
     restoreSession
