@@ -18,6 +18,13 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 
 /**
+ * @route   POST /api/auth/demo
+ * @desc    Authenticate into public demo user account
+ * @access  Public
+ */
+router.post('/demo', authController.loginDemo);
+
+/**
  * @route   GET /api/auth/me
  * @desc    Get current authenticated user profile
  * @access  Private

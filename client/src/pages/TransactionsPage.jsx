@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { transactionsApi } from '../services/api';
 import TransactionForm from '../components/TransactionForm';
+import TransactionImportModal from '../components/TransactionImportModal';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, PAYMENT_METHODS } from '../constants/categories';
@@ -21,7 +22,8 @@ import {
   Loader2,
   Calendar,
   CreditCard,
-  Tag
+  Tag,
+  Sparkles
 } from 'lucide-react';
 
 export default function TransactionsPage() {
@@ -52,6 +54,7 @@ export default function TransactionsPage() {
 
   // Modal / Form States
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [deletingTransaction, setDeletingTransaction] = useState(null);
 
@@ -173,21 +176,34 @@ export default function TransactionsPage() {
         <div>
           <h2 className="section-title">Transactions</h2>
           <p className="section-subtitle">
-            Manage, filter, and track all your manual incomes and expenses.
+            Manage, filter, and track all your manual and imported transactions.
           </p>
         </div>
 
-        <button
-          id="btn-add-transaction-open"
-          className="btn-primary"
-          onClick={() => {
-            setEditingTransaction(null);
-            setIsFormOpen(true);
-          }}
-        >
-          <Plus size={18} />
-          <span>Record Transaction</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            id="btn-import-sms-open"
+            type="button"
+            className="btn-outline"
+            onClick={() => setIsImportOpen(true)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#6ee7b7' }}
+          >
+            <Sparkles size={16} />
+            <span>Scan SMS / Import</span>
+          </button>
+
+          <button
+            id="btn-add-transaction-open"
+            className="btn-primary"
+            onClick={() => {
+              setEditingTransaction(null);
+              setIsFormOpen(true);
+            }}
+          >
+            <Plus size={18} />
+            <span>Add Transaction</span>
+          </button>
+        </div>
       </div>
 
       {/* Success Notification */}
@@ -221,6 +237,18 @@ export default function TransactionsPage() {
             />
           </div>
         </div>
+      )}
+
+      {/* Smart SMS / Notification Import Modal */}
+      {isImportOpen && (
+        <TransactionImportModal
+          isOpen={isImportOpen}
+          onClose={() => setIsImportOpen(false)}
+          onSuccess={(msg) => {
+            setSuccessMessage(msg || 'Transaction imported successfully');
+            fetchTransactions(filters);
+          }}
+        />
       )}
 
       {/* Delete Confirmation Modal */}
@@ -443,8 +471,12 @@ export default function TransactionsPage() {
 
                         {/* Source */}
                         <td>
-                          <span className="tag-source">
-                            ✍ Manual
+                          <span className={`tag-source ${
+                            tx.source === 'sms' ? 'tag-source-sms' :
+                            tx.source === 'imported' ? 'tag-source-imported' : 'tag-source-manual'
+                          }`}>
+                            {tx.source === 'sms' ? '📱 SMS' :
+                             tx.source === 'imported' ? '⚡ Imported' : '✍ Manual'}
                           </span>
                         </td>
 

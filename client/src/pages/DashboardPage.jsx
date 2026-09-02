@@ -407,40 +407,40 @@ export default function DashboardPage({ onNavigateToTransactions }) {
         </div>
       </div>
 
-      {/* Security Architecture Guarantees */}
+      {/* Security & Privacy Guarantees */}
       <h3 style={{ fontSize: '1.25rem', fontWeight: 700, margin: '1rem 0 1rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <Lock size={20} color="var(--accent-primary)" />
-        Phase 3 Security & Isolation Architecture
+        Security & Data Privacy
       </h3>
 
       <div className="grid-3col">
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <Layers size={18} color="var(--accent-primary)" />
-            <strong style={{ fontSize: '0.92rem' }}>Strict User Ownership</strong>
+            <strong style={{ fontSize: '0.92rem' }}>Strict Account Privacy</strong>
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-            Backend enforces <code style={{ color: '#818cf8' }}>req.user._id</code> on all CRUD operations. Unauthorized cross-user reads, edits, or deletes are strictly rejected.
+            All records, budgets, and savings goals are securely isolated to your authenticated account.
           </p>
         </div>
 
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <Sparkles size={18} color="var(--accent-secondary)" />
-            <strong style={{ fontSize: '0.92rem' }}>Server-Computed Totals</strong>
+            <strong style={{ fontSize: '0.92rem' }}>Real-Time Financial Totals</strong>
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-            Financial metrics (<code style={{ color: '#818cf8' }}>totalIncome</code>, <code style={{ color: '#818cf8' }}>totalExpenses</code>, <code style={{ color: '#818cf8' }}>balance</code>) are calculated strictly by the backend server.
+            Financial metrics, income, expenses, and current balances are computed accurately in real time.
           </p>
         </div>
 
         <div className="card">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
             <ShieldCheck size={18} color="var(--success)" />
-            <strong style={{ fontSize: '0.92rem' }}>Manual Source Isolation</strong>
+            <strong style={{ fontSize: '0.92rem' }}>Encrypted & Verified</strong>
           </div>
           <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-            All Phase 3 transactions are stamped with <code style={{ color: '#818cf8' }}>source: 'manual'</code>, ready for future automated SMS detection pipelines.
+            Industry-standard token encryption and verification ensure your personal data remains private and protected.
           </p>
         </div>
       </div>

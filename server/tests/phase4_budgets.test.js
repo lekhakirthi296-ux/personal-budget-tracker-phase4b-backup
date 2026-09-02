@@ -23,6 +23,10 @@ const mongoose = require('mongoose');
 const Budget = require('../models/Budget');
 const Transaction = require('../models/Transaction');
 const budgetController = require('../controllers/budgetController');
+const db = require('../config/db');
+
+// Enable simulated database connection for tests
+db.setMongoConnected(true);
 
 // ---------------------------------------------------------------------------
 // Lightweight test harness (mirrors Phase 2 / Phase 3 style)

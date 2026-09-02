@@ -100,6 +100,12 @@ export const authApi = {
     });
   },
 
+  loginDemo: () => {
+    return request('/api/auth/demo', {
+      method: 'POST'
+    });
+  },
+
   getCurrentUser: (tokenOverride) => {
     const headers = tokenOverride ? { Authorization: `Bearer ${tokenOverride}` } : {};
     return request('/api/auth/me', {
@@ -117,6 +123,13 @@ export const transactionsApi = {
     return request('/api/transactions', {
       method: 'POST',
       body: transactionData
+    });
+  },
+
+  detectImport: (text) => {
+    return request('/api/transactions/import/detect', {
+      method: 'POST',
+      body: { text }
     });
   },
 
@@ -215,6 +228,50 @@ export const budgetsApi = {
 };
 
 /**
+ * Savings Goals API (Phase 5)
+ */
+export const savingsApi = {
+  getAll: () => {
+    return request('/api/savings', {
+      method: 'GET'
+    });
+  },
+
+  getById: (id) => {
+    return request(`/api/savings/${id}`, {
+      method: 'GET'
+    });
+  },
+
+  create: (goalData) => {
+    return request('/api/savings', {
+      method: 'POST',
+      body: goalData
+    });
+  },
+
+  update: (id, goalData) => {
+    return request(`/api/savings/${id}`, {
+      method: 'PUT',
+      body: goalData
+    });
+  },
+
+  contribute: (id, amount) => {
+    return request(`/api/savings/${id}/contribute`, {
+      method: 'PATCH',
+      body: { amount }
+    });
+  },
+
+  delete: (id) => {
+    return request(`/api/savings/${id}`, {
+      method: 'DELETE'
+    });
+  }
+};
+
+/**
  * Health Check API
  */
 export const healthApi = {
@@ -230,6 +287,7 @@ export default {
   transactions: transactionsApi,
   dashboard: dashboardApi,
   budgets: budgetsApi,
+  savings: savingsApi,
   health: healthApi,
   tokenStorage
 };

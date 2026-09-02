@@ -45,8 +45,8 @@ const transactionSchema = new mongoose.Schema(
     source: {
       type: String,
       enum: {
-        values: ['manual', 'sms'],
-        message: 'Source must be manual or sms'
+        values: ['manual', 'sms', 'imported'],
+        message: 'Source must be manual, sms, or imported'
       },
       default: 'manual'
     }

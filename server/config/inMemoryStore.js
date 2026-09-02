@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const users = [];
 const transactions = [];
 const budgets = [];
+const savingsGoals = [];
 
 // Helper to generate mongo-like hex IDs
 const generateId = () => crypto.randomBytes(12).toString('hex');
@@ -264,6 +265,65 @@ const memoryStore = {
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
     return Math.round(total * 100) / 100;
+  },
+
+  // Savings Goal operations
+  savingsGoals,
+
+  findSavingsGoals: async (userId) => {
+    const list = savingsGoals.filter((g) => String(g.userId) === String(userId));
+    list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return list;
+  },
+
+  findSavingsGoalById: async (id, userId) => {
+    return savingsGoals.find((g) => String(g._id) === String(id) && String(g.userId) === String(userId)) || null;
+  },
+
+  createSavingsGoal: async (data) => {
+    const goal = {
+      _id: generateId(),
+      userId: data.userId,
+      name: data.name,
+      targetAmount: Number(data.targetAmount),
+      currentAmount: Number(data.currentAmount || 0),
+      targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    savingsGoals.push(goal);
+    return goal;
+  },
+
+  updateSavingsGoal: async (id, userId, updates) => {
+    const idx = savingsGoals.findIndex((g) => String(g._id) === String(id) && String(g.userId) === String(userId));
+    if (idx === -1) return null;
+
+    savingsGoals[idx] = {
+      ...savingsGoals[idx],
+      ...updates,
+      targetAmount: updates.targetAmount !== undefined ? Number(updates.targetAmount) : savingsGoals[idx].targetAmount,
+      currentAmount: updates.currentAmount !== undefined ? Number(updates.currentAmount) : savingsGoals[idx].currentAmount,
+      targetDate: updates.targetDate ? new Date(updates.targetDate) : (updates.targetDate === null ? undefined : savingsGoals[idx].targetDate),
+      updatedAt: new Date()
+    };
+    return savingsGoals[idx];
+  },
+
+  addContribution: async (id, userId, amount) => {
+    const idx = savingsGoals.findIndex((g) => String(g._id) === String(id) && String(g.userId) === String(userId));
+    if (idx === -1) return null;
+
+    savingsGoals[idx].currentAmount = Math.round((Number(savingsGoals[idx].currentAmount || 0) + Number(amount)) * 100) / 100;
+    savingsGoals[idx].updatedAt = new Date();
+    return savingsGoals[idx];
+  },
+
+  deleteSavingsGoal: async (id, userId) => {
+    const idx = savingsGoals.findIndex((g) => String(g._id) === String(id) && String(g.userId) === String(userId));
+    if (idx === -1) return false;
+    savingsGoals.splice(idx, 1);
+    return true;
   }
 };
 

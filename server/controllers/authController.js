@@ -3,6 +3,7 @@ const User = require('../models/User');
 const { isMongoConnected } = require('../config/db');
 const memoryStore = require('../config/inMemoryStore');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
+const { getOrCreateDemoAccount, DEMO_EMAIL } = require('../services/demoService');
 
 // Email validation regex pattern
 const EMAIL_REGEX = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
@@ -172,6 +173,8 @@ const getCurrentUser = async (req, res, next) => {
       return sendError(res, 'Authentication required', null, 401);
     }
 
+    const isDemo = req.user.email === DEMO_EMAIL;
+
     return sendSuccess(
       res,
       'Authenticated user',
@@ -179,8 +182,38 @@ const getCurrentUser = async (req, res, next) => {
         user: {
           id: req.user._id,
           name: req.user.name,
-          email: req.user.email
+          email: req.user.email,
+          isDemo
         }
+      },
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @desc   Authenticate and log in to the dedicated public demo account
+ * @route  POST /api/auth/demo
+ * @access Public
+ */
+const loginDemo = async (req, res, next) => {
+  try {
+    const demoAccount = await getOrCreateDemoAccount();
+    const token = generateToken(demoAccount.id);
+
+    return sendSuccess(
+      res,
+      'Demo account login successful',
+      {
+        user: {
+          id: demoAccount.id,
+          name: demoAccount.name,
+          email: demoAccount.email,
+          isDemo: true
+        },
+        token
       },
       200
     );
@@ -192,6 +225,7 @@ const getCurrentUser = async (req, res, next) => {
 module.exports = {
   register,
   login,
-  getCurrentUser
+  getCurrentUser,
+  loginDemo
 };
 

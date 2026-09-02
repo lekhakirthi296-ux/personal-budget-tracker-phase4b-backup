@@ -3,6 +3,7 @@ const Transaction = require('../models/Transaction');
 const { isMongoConnected } = require('../config/db');
 const memoryStore = require('../config/inMemoryStore');
 const { sendSuccess, sendError } = require('../utils/apiResponse');
+const { parseTransactionText, checkDuplicateTransaction } = require('../services/transactionImportService');
 
 /**
  * Helper to escape regex special characters
@@ -63,6 +64,11 @@ const createTransaction = async (req, res, next) => {
       formattedDescription = description.trim();
     }
 
+    const allowedSources = ['manual', 'sms', 'imported'];
+    const selectedSource = (req.body.source && allowedSources.includes(req.body.source.toLowerCase()))
+      ? req.body.source.toLowerCase()
+      : 'manual';
+
     const txData = {
       userId: req.user._id,
       type: type.toLowerCase(),
@@ -71,7 +77,7 @@ const createTransaction = async (req, res, next) => {
       date: transactionDate,
       paymentMethod: paymentMethod.trim(),
       description: formattedDescription,
-      source: 'manual'
+      source: selectedSource
     };
 
     let transaction;
@@ -375,11 +381,49 @@ const deleteTransaction = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc   Parse and detect transaction details from raw SMS / notification text
+ * @route  POST /api/transactions/import/detect
+ * @access Private
+ */
+const detectImportedTransaction = async (req, res, next) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return sendError(res, 'Please provide transaction text or SMS message to detect', null, 400);
+    }
+
+    // 1. Parse SMS text to extract candidate transaction fields & confidence score
+    const parseResult = parseTransactionText(text);
+
+    if (!parseResult.success) {
+      return sendError(res, parseResult.error || 'Failed to detect transaction details', null, 400);
+    }
+
+    // 2. Check for duplicate transactions in user's history
+    const duplicateCheck = await checkDuplicateTransaction(req.user._id, parseResult.detected);
+
+    return sendSuccess(res, 'Transaction details detected successfully', {
+      detected: parseResult.detected,
+      confidence: parseResult.confidence,
+      duplicateCheck: {
+        isDuplicate: duplicateCheck.isDuplicate,
+        duplicateWarning: duplicateCheck.duplicateWarning,
+        matchingTransaction: duplicateCheck.matchingTransaction
+      }
+    }, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createTransaction,
   getTransactions,
   getTransactionById,
   updateTransaction,
-  deleteTransaction
+  deleteTransaction,
+  detectImportedTransaction
 };
 
