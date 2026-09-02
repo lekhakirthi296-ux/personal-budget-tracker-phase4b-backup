@@ -6,78 +6,99 @@ export const THEMES = [
   {
     id: 'default',
     name: 'Default',
-    description: 'Neon Indigo & Violet',
+    description: 'Modern Slate & Indigo Classic',
     preview: {
-      bg: '#0a0e1a',
-      card: '#161e32',
+      bg: '#0c1017',
+      card: '#171f30',
+      elevated: '#1e293f',
+      border: '#28334a',
       accent: '#6366f1',
-      text: '#f8fafc'
+      text: '#f8fafc',
+      chart: ['#6366f1', '#38bdf8', '#10b981', '#f59e0b', '#ec4899']
     }
   },
   {
     id: 'dusty',
     name: 'Dusty',
-    description: 'Muted Slate & Warm Bronze',
+    description: 'Architectural Stone & Brushed Bronze',
     preview: {
-      bg: '#1c1a19',
-      card: '#2d2926',
-      accent: '#c79c7a',
-      text: '#f5f0eb'
+      bg: '#171615',
+      card: '#272522',
+      elevated: '#322f2b',
+      border: '#3b3733',
+      accent: '#c89b72',
+      text: '#f7f3ee',
+      chart: ['#c89b72', '#7ea2be', '#5ca67b', '#d9a05b', '#b48395']
     }
   },
   {
     id: 'sage',
     name: 'Sage',
-    description: 'Muted Eucalyptus & Neutral',
+    description: 'Nordic Botanical & Eucalyptus Slate',
     preview: {
-      bg: '#121915',
-      card: '#1c2922',
-      accent: '#52946e',
-      text: '#f0f7f2'
+      bg: '#0f1713',
+      card: '#1b2922',
+      elevated: '#23342b',
+      border: '#2d4237',
+      accent: '#4ea375',
+      text: '#f0f7f3',
+      chart: ['#4ea375', '#5c9eb8', '#d4a359', '#9382c4', '#e07a5f']
     }
   },
   {
     id: 'lavender',
     name: 'Lavender',
-    description: 'Soft Lilac & Muted Purple',
+    description: 'Soft Amethyst & Twilight Slate',
     preview: {
-      bg: '#15131f',
-      card: '#221e33',
-      accent: '#9d85c7',
-      text: '#f5f3fa'
+      bg: '#13111c',
+      card: '#221e32',
+      elevated: '#2c2740',
+      border: '#393252',
+      accent: '#9e82d4',
+      text: '#f6f3fb',
+      chart: ['#9e82d4', '#6fa4df', '#5bb88a', '#dc9e5c', '#d96378']
     }
   },
   {
     id: 'teal',
     name: 'Teal',
-    description: 'Deep Oceanic & Cyan',
+    description: 'Deep Oceanic & Seafoam Petrol',
     preview: {
-      bg: '#0a181a',
-      card: '#12292e',
-      accent: '#2d9ca3',
-      text: '#eef9fa'
+      bg: '#0a1618',
+      card: '#142a2e',
+      elevated: '#1b363b',
+      border: '#23454b',
+      accent: '#22a3ad',
+      text: '#eefafb',
+      chart: ['#22a3ad', '#38bdf8', '#34b38a', '#d9a04e', '#9a7ecc']
     }
   },
   {
     id: 'mocha',
     name: 'Mocha',
-    description: 'Warm Brown & Roasted Cream',
+    description: 'Artisan Espresso & Roasted Caramel',
     preview: {
-      bg: '#191410',
-      card: '#29211b',
-      accent: '#b8865b',
-      text: '#faf5f0'
+      bg: '#16120f',
+      card: '#28211b',
+      elevated: '#342b23',
+      border: '#3e322a',
+      accent: '#c28b57',
+      text: '#faf4ee',
+      chart: ['#c28b57', '#7b9ebc', '#62a673', '#d49b4f', '#b87b8f']
     }
   },
   {
     id: 'midnight',
     name: 'Midnight',
-    description: 'Obsidian Black & Ice Blue',
+    description: 'Obsidian Black & Sapphire Blue',
     preview: {
-      bg: '#05070c',
-      card: '#0f1422',
+      bg: '#06080d',
+      card: '#101522',
+      elevated: '#171e30',
+      border: '#222c42',
       accent: '#38bdf8',
-      text: '#f8fafc'
+      text: '#f8fafc',
+      chart: ['#38bdf8', '#818cf8', '#10b981', '#f59e0b', '#f43f5e']
     }
   }
 ];

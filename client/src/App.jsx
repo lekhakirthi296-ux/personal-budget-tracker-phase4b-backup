@@ -10,8 +10,8 @@ import SavingsPage from './pages/SavingsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import NotificationBell from './components/NotificationBell';
 import ThemeSelectorModal from './components/ThemeSelectorModal';
+import BrandLogo from './components/BrandLogo';
 import { 
-  DollarSign, 
   LogOut, 
   Receipt,
   LayoutDashboard,
@@ -34,9 +34,7 @@ function AppContent() {
       {/* App Header */}
       <header className="app-header">
         <div className="brand">
-          <div className="brand-icon">
-            <DollarSign size={24} color="#ffffff" />
-          </div>
+          <BrandLogo size={42} />
           <div className="brand-text">
             <h1>Personal Budget Tracker</h1>
             <p>Personal Finance, Budgeting & Savings Management</p>

@@ -107,18 +107,29 @@ export default function ThemeSelectorModal({ isOpen, onClose }) {
                     <div
                       className="theme-swatch-chip"
                       style={{ background: t.preview.card }}
-                      title="Card Surface"
+                      title="Surface Card"
+                    />
+                    <div
+                      className="theme-swatch-chip"
+                      style={{ background: t.preview.elevated || t.preview.card }}
+                      title="Elevated Panel"
                     />
                     <div
                       className="theme-swatch-chip"
                       style={{ background: t.preview.accent }}
-                      title="Accent Primary"
+                      title="Accent"
                     />
-                    <div
-                      className="theme-swatch-chip"
-                      style={{ background: t.preview.text }}
-                      title="Primary Text"
-                    />
+                    {t.preview.chart && (
+                      <div className="theme-swatch-chart-group" title="Chart Palette">
+                        {t.preview.chart.slice(0, 4).map((c, i) => (
+                          <span
+                            key={i}
+                            className="theme-chart-dot"
+                            style={{ background: c }}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </button>
               );
