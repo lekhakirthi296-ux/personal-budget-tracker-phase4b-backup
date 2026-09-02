@@ -37,6 +37,23 @@ export const tokenStorage = {
   }
 };
 
+const PRODUCTION_API_URL = 'https://personal-budget-tracker-backend-t1so.onrender.com';
+
+/**
+ * Resolve API Base URL:
+ * - In Production (Vercel build): Points to Render backend
+ * - In Development (Vite dev server): Empty string '' to route through local Vite proxy
+ * - Optional Override: Supports VITE_API_BASE_URL if defined in environment
+ */
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? PRODUCTION_API_URL : '');
+
+function getFullUrl(endpoint) {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+  return `${API_BASE_URL}${endpoint}`;
+}
+
 /**
  * Core HTTP Request Wrapper
  */
@@ -61,7 +78,8 @@ async function request(endpoint, options = {}) {
   }
 
   try {
-    const response = await fetch(endpoint, config);
+    const url = getFullUrl(endpoint);
+    const response = await fetch(url, config);
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
